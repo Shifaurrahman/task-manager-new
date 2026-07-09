@@ -94,15 +94,24 @@ def extract_concepts_node(state: PipelineState) -> PipelineState:
         "whenever a concept_id needs a date (e.g. journal entries). "
         "You convert a person's chat message into OKF knowledge-bundle updates. "
         "Decide which concepts (people, projects, tasks, decisions, personal notes, journal "
-        "entries, etc.) the message touches - there can be one or several. "
+        "entries, etc.) the message touches - there can be one or several, or none. "
         f"Existing registry types: {', '.join(existing_types)}. "
         f"{concept_context} "
+        "IMPORTANT - the 'Dashboard owner' given below is just who sent this message, NOT "
+        "necessarily who the message is about. Only touch the dashboard owner's own Person "
+        "concept if the message is genuinely about them (something they did, own, or were "
+        "told). Do not link or attribute unrelated concepts to the dashboard owner purely "
+        "because they sent the message. "
+        "If the message is small talk, off-topic, or has no durable knowledge content (e.g. "
+        "a weather comment, a greeting), return an EMPTY concepts array - it is correct and "
+        "expected to touch nothing rather than force-fitting it onto an unrelated existing "
+        "concept. "
         "You MUST always call extract_concepts with both the 'domain' field and the "
         "'concepts' field populated - never omit 'domain', even though it is a single "
-        "enum choice."
+        "enum choice. 'concepts' being an empty list is fine; omitting it is not."
     )
     user_message = (
-        f"Dashboard owner: {state['dashboard_owner']}\n"
+        f"Message sender (dashboard owner, not necessarily the subject): {state['dashboard_owner']}\n"
         f"Message: {state['raw_message']}"
     )
     result = call_with_tool(system, user_message, _build_extract_tool(), required_keys=["domain", "concepts"])

@@ -4,6 +4,7 @@
 * **Creation**: professional/projects/multimodal-rag-chatbot.md (Project)
 
 ## 2026-07-09
+* **Creation**: professional/projects/image-classification.md (Project)
 * **Creation**: professional/projects/fleet-management.md (Project)
 * **Update**: professional/projects/multimodal-rag-chatbot.md (Project)
 * **Creation**: professional/projects/smart-inventory.md (Project)
