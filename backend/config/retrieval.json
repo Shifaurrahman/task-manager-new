@@ -1,0 +1,4 @@
+{
+    "strategy": "fuzzy",
+    "top_k": 15
+  }

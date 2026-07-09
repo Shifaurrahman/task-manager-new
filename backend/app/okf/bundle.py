@@ -1,0 +1,121 @@
+from pathlib import Path
+
+from app.config import settings
+from app.okf import frontmatter as fm
+
+BUNDLE_ROOT = settings.bundle_path
+
+
+def concept_path(concept_id: str) -> Path:
+    """concept_id like 'professional/people/piyal' -> data/bundle/professional/people/piyal.md"""
+    return BUNDLE_ROOT / f"{concept_id}.md"
+
+
+def concept_exists(concept_id: str) -> bool:
+    return concept_path(concept_id).exists()
+
+
+def list_concepts() -> list[dict]:
+    """Scan the whole bundle for existing concepts, so the extraction prompt can
+    reuse a concept_id instead of drifting into a near-duplicate on every message."""
+    if not BUNDLE_ROOT.exists():
+        return []
+
+    concepts = []
+    for path in BUNDLE_ROOT.rglob("*.md"):
+        if path.name in ("index.md", "log.md"):
+            continue
+        post = fm.load(path)
+        if post is None:
+            continue
+        concept_id = path.relative_to(BUNDLE_ROOT).with_suffix("").as_posix()
+        concepts.append({
+            "concept_id": concept_id,
+            "title": post.get("title", path.stem),
+            "type": post.get("type", "Unknown"),
+        })
+    return concepts
+
+
+def write_concept(concept_id: str, type_: str, title: str, description: str, body_addition: str) -> tuple[Path, str]:
+    """Create the concept file if missing, otherwise append to it. Returns (path, action)."""
+    path = concept_path(concept_id)
+    existing = fm.load(path)
+
+    if existing is None:
+        post = fm.new_post(type_, title, description, body_addition.strip() + "\n")
+        action = "created"
+    else:
+        post = existing
+        # Backfill any metadata missing from a prior partial/broken write -
+        # never overwrites values that are already present.
+        post.metadata.setdefault("type", type_)
+        post.metadata.setdefault("title", title)
+        post.metadata.setdefault("description", description)
+        fm.append_body(post, body_addition)
+        action = "updated"
+
+    fm.save(post, path)
+    return path, action
+
+
+def add_link(concept_id: str, link_line: str) -> None:
+    """Append a one-line cross-link into an existing concept's body, avoiding duplicates."""
+    path = concept_path(concept_id)
+    post = fm.load(path)
+    if post is None:
+        return
+    if link_line.strip() in post.content:
+        return
+    fm.append_body(post, link_line)
+    fm.save(post, path)
+
+
+def append_log(concept_id: str, entry: str) -> None:
+    """Append a dated log entry to the log.md nearest the concept (its parent directory)."""
+    scope_dir = concept_path(concept_id).parent
+    scope_dir.mkdir(parents=True, exist_ok=True)
+    log_path = scope_dir / "log.md"
+    date_heading = fm.now_iso()[:10]  # YYYY-MM-DD
+
+    if log_path.exists():
+        text = log_path.read_text()
+    else:
+        text = "# Directory Update Log\n"
+
+    heading = f"## {date_heading}"
+    line = f"* {entry}"
+    if heading in text:
+        text = text.replace(heading, f"{heading}\n{line}", 1)
+    else:
+        text += f"\n{heading}\n{line}\n"
+
+    log_path.write_text(text)
+
+
+def rebuild_index(directory: Path) -> None:
+    """Regenerate index.md for a directory by scanning its concept files' frontmatter."""
+    entries = []
+    for path in sorted(directory.glob("*.md")):
+        if path.name in ("index.md", "log.md"):
+            continue
+        post = fm.load(path)
+        if post is None:
+            continue
+        title = post.get("title", path.stem)
+        desc = post.get("description", "")
+        entries.append(f"* [{title}]({path.name}) - {desc}" if desc else f"* [{title}]({path.name})")
+
+    subdirs = [p for p in directory.iterdir() if p.is_dir()]
+
+    lines = ["# Index\n"]
+    if entries:
+        lines.append("## Concepts\n")
+        lines.extend(entries)
+        lines.append("")
+    if subdirs:
+        lines.append("## Subdirectories\n")
+        lines.extend(f"* [{d.name}/]({d.name}/)" for d in sorted(subdirs))
+        lines.append("")
+
+    (directory / "index.md").write_text("\n".join(lines))

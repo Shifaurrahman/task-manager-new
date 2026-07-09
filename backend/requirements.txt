@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+anthropic
+pydantic
+pydantic-settings
+python-frontmatter
+python-dotenv
+langgraph
+rapidfuzz
