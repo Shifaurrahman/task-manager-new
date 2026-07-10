@@ -24,8 +24,12 @@ def _build_extract_tool() -> dict:
             "properties": {
                 "domain": {
                     "type": "string",
-                    "enum": _load_domains(),
-                    "description": "Which section of the bundle this message belongs to.",
+                    "enum": _load_domains() + ["n/a"],
+                    "description": (
+                        "Which section of the bundle this message belongs to. "
+                        "Use 'n/a' only when concepts is empty - never assign a real "
+                        "domain to a message that produced no concepts."
+                    ),
                 },
                 "concepts": {
                     "type": "array",

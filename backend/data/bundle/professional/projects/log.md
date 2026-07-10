@@ -13,3 +13,6 @@
 * **Update**: professional/projects/voice-extraction.md (Project)
 * **Creation**: professional/projects/abc-client.md (Project)
 * **Creation**: professional/projects/voice-extraction.md (Project)
+
+## 2026-07-10
+* **Creation**: professional/projects/expense-tracker.md (Project)

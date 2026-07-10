@@ -3,6 +3,7 @@
 ## Concepts
 
 * [ABC Client Engagement](abc-client.md) - Client engagement/project with the ABC team, including scheduled meetings.
+* [Expense Tracker Project](expense-tracker.md) - Project involving an expense tracking system, currently undergoing a database migration task.
 * [Fleet Management Dashboard](fleet-management.md) - A project involving a dashboard for fleet management, owned by Kamal.
 * [Image Classification Project](image-classification.md) - A project involving image classification, currently in a deployment phase.
 * [Multi-Modal RAG Chatbot](multimodal-rag-chatbot.md) - Project involving a multi-modal retrieval-augmented generation chatbot.

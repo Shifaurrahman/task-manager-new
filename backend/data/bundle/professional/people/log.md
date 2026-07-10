@@ -12,3 +12,6 @@
 * **Creation**: professional/people/kamal.md (Person)
 * **Creation**: professional/people/abc-team.md (Person)
 * **Update**: professional/people/piyal.md (Person)
+
+## 2026-07-10
+* **Creation**: professional/people/amila.md (Person)
