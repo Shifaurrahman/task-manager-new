@@ -16,3 +16,8 @@
 
 ## 2026-07-10
 * **Creation**: professional/projects/expense-tracker.md (Project)
+
+## 2026-07-13
+* **Creation**: professional/projects/supplier-portal.md (Project)
+* **Creation**: professional/projects/document-ocr.md (Project)
+* **Creation**: professional/projects/television.md (Project)
