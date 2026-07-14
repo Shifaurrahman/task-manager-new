@@ -78,6 +78,7 @@ def _build_extract_tool() -> dict:
 def extract_concepts_node(state: PipelineState) -> PipelineState:
     existing_types = registry.load_types()
     existing_concepts = retrieval.get_relevant_concepts(state["raw_message"])
+    index_files = bundle.list_index_files()
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
     if existing_concepts:
@@ -93,6 +94,19 @@ def extract_concepts_node(state: PipelineState) -> PipelineState:
     else:
         concept_context = "No closely related existing concepts were found - treat this as likely new."
 
+    if index_files:
+        index_blocks = "\n\n".join(
+            f"[{i['folder']}/index.md]\n{i['content']}" for i in index_files
+        )
+        index_context = (
+            "Folder-level overviews of the bundle's existing structure (each index.md "
+            "lists what's already in that folder) - use this for broad context on what "
+            "categories/areas already exist, alongside the specific concept matches above:\n"
+            + index_blocks
+        )
+    else:
+        index_context = "No index.md files yet - the bundle is likely empty or new."
+
     system = (
         f"Today's date is {today} (UTC) - use this, not any other assumption, "
         "whenever a concept_id needs a date (e.g. journal entries). "
@@ -101,6 +115,7 @@ def extract_concepts_node(state: PipelineState) -> PipelineState:
         "entries, etc.) the message touches - there can be one or several, or none. "
         f"Existing registry types: {', '.join(existing_types)}. "
         f"{concept_context} "
+        f"{index_context} "
         "IMPORTANT - this bundle belongs to a single person: the dashboard owner. They are "
         "the implicit user of the whole system, not a contact to track by default. The rule: "
         "- If the owner is merely REPORTING or ASSIGNING someone else's work (e.g. 'Assign "
@@ -141,26 +156,38 @@ def write_concepts_node(state: PipelineState) -> PipelineState:
     written = []
     for concept in state["concepts"]:
         concept_id = concept["concept_id"]
-        registry.register_type(concept["type"])
 
-        path, action = bundle.write_concept(
-            concept_id=concept_id,
-            type_=concept["type"],
-            title=concept["title"],
-            description=concept["description"],
-            body_addition=concept["content"],
-        )
+        try:
+            registry.register_type(concept["type"])
 
-        for target_id in concept.get("links_to", []):
-            link_line = f"See [{concept['title']}](/{concept_id}.md)."
-            bundle.add_link(target_id, link_line)
+            path, action = bundle.write_concept(
+                concept_id=concept_id,
+                type_=concept["type"],
+                title=concept["title"],
+                description=concept["description"],
+                body_addition=concept["content"],
+            )
 
-        written.append({
-            "concept_id": concept_id,
-            "type": concept["type"],
-            "action": action,
-            "path": str(path),
-        })
+            for target_id in concept.get("links_to", []):
+                link_line = f"See [{concept['title']}](/{concept_id}.md)."
+                bundle.add_link(target_id, link_line)
+
+            written.append({
+                "concept_id": concept_id,
+                "type": concept["type"],
+                "action": action,
+                "path": str(path),
+            })
+        except bundle.UnsafeConceptIdError as e:
+            # Don't let one bad concept_id fail the whole message - skip it,
+            # log it, and keep writing the other concepts in this batch.
+            print(f"[write_concepts_node] Skipped unsafe concept_id: {e}")
+            written.append({
+                "concept_id": concept_id,
+                "type": concept["type"],
+                "action": "rejected",
+                "path": "",
+            })
     state["written"] = written
     return state
 
@@ -168,6 +195,8 @@ def write_concepts_node(state: PipelineState) -> PipelineState:
 def update_meta_node(state: PipelineState) -> PipelineState:
     touched_dirs = set()
     for item in state["written"]:
+        if item["action"] == "rejected":
+            continue
         concept_id = item["concept_id"]
         verb = "Creation" if item["action"] == "created" else "Update"
         bundle.append_log(concept_id, f"**{verb}**: {item['concept_id']}.md ({item['type']})")

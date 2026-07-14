@@ -17,5 +17,6 @@
 * **Creation**: professional/people/amila.md (Person)
 
 ## 2026-07-13
+* **Creation**: professional/people/chamodi.md (Person)
 * **Creation**: professional/people/madushan.md (Person)
 * **Creation**: professional/people/dilshan.md (Person)

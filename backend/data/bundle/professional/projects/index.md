@@ -4,6 +4,7 @@
 
 * [ABC Client Engagement](abc-client.md) - Client engagement/project with the ABC team, including scheduled meetings.
 * [Document OCR Project](document-ocr.md) - Project focused on document OCR, currently in its testing phase.
+* [E-Commerce Project](e-commerce.md) - Project involving e-commerce platform development, currently includes payment gateway integration work.
 * [Expense Tracker Project](expense-tracker.md) - Project involving an expense tracking system, currently undergoing a database migration task.
 * [Fleet Management Dashboard](fleet-management.md) - A project involving a dashboard for fleet management, owned by Kamal.
 * [Image Classification Project](image-classification.md) - A project involving image classification, currently in a deployment phase.

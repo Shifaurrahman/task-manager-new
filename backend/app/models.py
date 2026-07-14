@@ -2,7 +2,6 @@ from pydantic import BaseModel
 
 
 class MessageRequest(BaseModel):
-    dashboard_owner: str      # e.g. "kamal" - whose dashboard sent this
     message: str               # the raw chat input
 
 

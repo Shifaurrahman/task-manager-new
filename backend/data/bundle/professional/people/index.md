@@ -4,6 +4,7 @@
 
 * [ABC Team](abc-team.md) - Client team referred to as 'ABC', involved in an upcoming client meeting with Kamal.
 * [Amila](amila.md) - Team member assigned to work on the Expense Tracker project's database migration.
+* [Chamodi](chamodi.md) - Team member assigned to work on the E-Commerce project's payment gateway integration.
 * [Dilshan](dilshan.md) - Team member assigned to work on the Document OCR project testing phase.
 * [Dinuka](dinuka.md) - Team member assigned to work on the Image Classification project's deployment section.
 * [Kamal](kamal.md) - Owner of the staff tracker dashboard project.

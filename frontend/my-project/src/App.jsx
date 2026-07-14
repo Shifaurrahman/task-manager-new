@@ -1,10 +1,8 @@
 import { useState } from "react";
-import OwnerBar from "./components/OwnerBar";
 import Composer from "./components/Composer";
 import ResultCard from "./components/ResultCard";
 
 export default function App() {
-  const [owner, setOwner] = useState("kamal");
   const [history, setHistory] = useState([]);
 
   function handleResult(message, result, error) {
@@ -18,11 +16,10 @@ export default function App() {
     <div className="flex min-h-screen flex-col bg-[#15171B] text-[#E8E6E1]">
       <header className="border-b border-white/10 px-6 py-4">
         <h1 className="text-lg font-semibold tracking-tight">Dashboard</h1>
-        <OwnerBar owner={owner} onChange={setOwner} />
       </header>
 
       <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-6 py-8">
-        <Composer owner={owner} onResult={handleResult} />
+        <Composer onResult={handleResult} />
 
         <div className="flex flex-col gap-4">
           {history.length === 0 && (

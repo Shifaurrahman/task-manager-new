@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     anthropic_api_key: str
     bundle_root: str = "./data/bundle"
     model: str = "claude-sonnet-5"
+    owner_name: str = "kamal"  # this bundle belongs to one person - set here, not per-request
 
     # Data-driven config - edit these files, not Python, to change behavior.
     seed_types_path: str = "./config/seed_types.json"

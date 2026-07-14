@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.config import settings
 from app.graph.build_graph import pipeline
 from app.models import MessageRequest, MessageResponse, WrittenConcept
 
@@ -17,7 +18,7 @@ app.add_middleware(
 @app.post("/message", response_model=MessageResponse)
 def handle_message(req: MessageRequest) -> MessageResponse:
     result = pipeline.invoke({
-        "dashboard_owner": req.dashboard_owner,
+        "dashboard_owner": settings.owner_name,
         "raw_message": req.message,
         "domain": "",
         "concepts": [],

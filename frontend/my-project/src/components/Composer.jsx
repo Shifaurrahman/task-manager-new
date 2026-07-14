@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { sendMessage } from "../api";
 
-export default function Composer({ owner, onResult }) {
+export default function Composer({ onResult }) {
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
 
@@ -13,7 +13,7 @@ export default function Composer({ owner, onResult }) {
     setSending(true);
     setText("");
     try {
-      const result = await sendMessage(owner, message);
+      const result = await sendMessage(message);
       onResult(message, result, null);
     } catch (err) {
       onResult(message, null, err.message);

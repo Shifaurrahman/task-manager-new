@@ -1,10 +1,10 @@
 const API_BASE = import.meta.env.VITE_API_BASE || "http://127.0.0.1:8000";
 
-export async function sendMessage(dashboardOwner, message) {
+export async function sendMessage(message) {
   const res = await fetch(`${API_BASE}/message`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ dashboard_owner: dashboardOwner, message }),
+    body: JSON.stringify({ message }),
   });
 
   if (!res.ok) {
