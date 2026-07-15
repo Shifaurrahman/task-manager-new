@@ -9,6 +9,7 @@
 * [Fleet Management Dashboard](fleet-management.md) - A project involving a dashboard for fleet management, owned by Kamal.
 * [Image Classification Project](image-classification.md) - A project involving image classification, currently in a deployment phase.
 * [Multi-Modal RAG Chatbot](multimodal-rag-chatbot.md) - Project involving a multi-modal retrieval-augmented generation chatbot.
+* [Route Optimization Project](route-optimization.md) - Project focused on route optimization, currently undergoing performance tuning work.
 * [Smart Inventory Project](smart-inventory.md) - A project involving development of a smart inventory system, currently requiring API integration work.
 * [Staff Tracker Dashboard](staff-tracker-dashboard.md) - Dashboard project owned by Kamal for tracking staff.
 * [Supplier Portal Project](supplier-portal.md) - A project involving development of a Supplier Portal, including an authentication module.

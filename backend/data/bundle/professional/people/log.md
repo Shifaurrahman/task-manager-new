@@ -20,3 +20,6 @@
 * **Creation**: professional/people/chamodi.md (Person)
 * **Creation**: professional/people/madushan.md (Person)
 * **Creation**: professional/people/dilshan.md (Person)
+
+## 2026-07-14
+* **Creation**: professional/people/vihanga.md (Person)

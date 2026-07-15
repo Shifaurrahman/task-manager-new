@@ -1,4 +1,5 @@
 import json
+import re
 
 from app.config import settings
 
@@ -16,6 +17,13 @@ def _load_seed_types() -> list[str]:
         return list(_FALLBACK_SEED_TYPES)
 
 
+def sanitize_type(type_name: str) -> str:
+    """Force PascalCase, no spaces - keeps type values URI-safe for any future
+    RDF/graph export, regardless of what the LLM actually returned."""
+    words = re.findall(r"[A-Za-z0-9]+", type_name)
+    return "".join(w.capitalize() for w in words) or "Unknown"
+
+
 def load_types() -> list[str]:
     if REGISTRY_PATH.exists():
         return json.loads(REGISTRY_PATH.read_text())
@@ -26,6 +34,7 @@ def load_types() -> list[str]:
 
 
 def register_type(type_name: str) -> None:
+    type_name = sanitize_type(type_name)
     types = load_types()
     if type_name not in types:
         types.append(type_name)

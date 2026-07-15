@@ -12,3 +12,4 @@
 * [Madushan](madushan.md) - Colleague assigned to work on the Supplier Portal project's authentication module.
 * [Piyal](piyal.md) - Team member assigned to work on the deployment section of the voice extraction project.
 * [Sanduni](sanduni.md) - Team member assigned to work on prompt optimization for the AI Chatbot project.
+* [Vihanga](vihanga.md) - Team member assigned to work on performance tuning for the Route Optimization project.

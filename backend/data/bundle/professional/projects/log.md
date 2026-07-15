@@ -22,3 +22,6 @@
 * **Creation**: professional/projects/supplier-portal.md (Project)
 * **Creation**: professional/projects/document-ocr.md (Project)
 * **Creation**: professional/projects/television.md (Project)
+
+## 2026-07-14
+* **Creation**: professional/projects/route-optimization.md (Project)

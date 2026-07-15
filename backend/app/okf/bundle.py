@@ -110,6 +110,18 @@ def add_link(concept_id: str, link_line: str) -> None:
     fm.save(post, path)
 
 
+def add_relation(concept_id: str, predicate: str, target_concept_id: str) -> None:
+    """Set a typed frontmatter relation (Vault-LD wikilink) on an existing concept,
+    pointing at another concept by its full concept_id. This is the machine-readable
+    counterpart to add_link()'s human-readable body cross-link."""
+    path = concept_path(concept_id)
+    post = fm.load(path)
+    if post is None:
+        return
+    fm.set_relation(post, predicate, target_concept_id)
+    fm.save(post, path)
+
+
 def append_log(concept_id: str, entry: str) -> None:
     """Append a dated log entry to the log.md nearest the concept (its parent directory)."""
     scope_dir = concept_path(concept_id).parent

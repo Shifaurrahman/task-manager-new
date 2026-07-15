@@ -39,40 +39,64 @@ def _build_extract_tool() -> dict:
                         "properties": {
                             "concept_id": {
                                 "type": "string",
-                            "description": (
-                                "Bundle-relative path without extension, e.g. "
-                                "'professional/people/piyal' or 'professional/projects/multimodal-rag-chatbot' "
-                                "or 'personal/journal/2026-07-08'. kebab-case, stable across messages "
-                                "about the same person/project so files get reused, not duplicated."
-                            ),
+                                "description": (
+                                    "Bundle-relative path without extension, e.g. "
+                                    "'professional/people/piyal' or 'professional/projects/multimodal-rag-chatbot' "
+                                    "or 'personal/journal/2026-07-08'. kebab-case, stable across messages "
+                                    "about the same person/project so files get reused, not duplicated."
+                                ),
+                            },
+                            "type": {
+                                "type": "string",
+                                "description": (
+                                    "Concept type in PascalCase, no spaces (e.g. 'MeetingNote', not "
+                                    "'Meeting note'). Prefer reusing one of the existing registry types "
+                                    "below if it's a reasonable semantic match. Only invent a new concise "
+                                    "PascalCase type if nothing fits."
+                                ),
+                            },
+                            "title": {"type": "string"},
+                            "description": {"type": "string", "description": "One-sentence summary."},
+                            "content": {
+                                "type": "string",
+                                "description": "Markdown body content to write for this update (a few sentences/bullets).",
+                            },
+                            "links_to": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": (
+                                    "concept_id values of other concepts in this same batch to add a "
+                                    "human-readable 'See [Title](...)' cross-link to in their body text."
+                                ),
+                            },
+                            "relations": {
+                                "type": "array",
+                                "description": (
+                                    "Typed structural links to other concepts in this same batch, for graph "
+                                    "queries. Each needs a camelCase predicate describing HOW this concept "
+                                    "relates to the target (e.g. 'attendee', 'assignedTo', 'partOf', "
+                                    "'relatesTo') and the target's exact concept_id."
+                                ),
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "predicate": {
+                                            "type": "string",
+                                            "description": "camelCase relation name, e.g. 'attendee', 'assignedTo', 'partOf'.",
+                                        },
+                                        "target_concept_id": {"type": "string"},
+                                    },
+                                    "required": ["predicate", "target_concept_id"],
+                                },
+                            },
                         },
-                        "type": {
-                            "type": "string",
-                            "description": (
-                                "Concept type. Prefer reusing one of the existing registry types given "
-                                "below if it's a reasonable semantic match. Only invent a new concise "
-                                "Title Case type if nothing fits."
-                            ),
-                        },
-                        "title": {"type": "string"},
-                        "description": {"type": "string", "description": "One-sentence summary."},
-                        "content": {
-                            "type": "string",
-                            "description": "Markdown body content to write for this update (a few sentences/bullets).",
-                        },
-                        "links_to": {
-                            "type": "array",
-                            "items": {"type": "string"},
-                            "description": "concept_id values of other concepts in this same batch to cross-link to.",
-                        },
+                        "required": ["concept_id", "type", "title", "description", "content", "links_to", "relations"],
                     },
-                    "required": ["concept_id", "type", "title", "description", "content", "links_to"],
                 },
             },
+            "required": ["domain", "concepts"],
         },
-        "required": ["domain", "concepts"],
-    },
-}
+    }
 
 
 def extract_concepts_node(state: PipelineState) -> PipelineState:
@@ -137,6 +161,11 @@ def extract_concepts_node(state: PipelineState) -> PipelineState:
         "a weather comment, a greeting), return an EMPTY concepts array - it is correct and "
         "expected to touch nothing rather than force-fitting it onto an unrelated existing "
         "concept. "
+        "Whenever a concept has a clear real-world relationship to another concept in this "
+        "same batch (e.g. a meeting has an attendee, a task is assignedTo a person, a task "
+        "is partOf a project), express it in 'relations' with a short camelCase predicate - "
+        "this is separate from 'links_to', which is just for the human-readable body text. "
+        "Populate both when a relationship applies. "
         "You MUST always call extract_concepts with both the 'domain' field and the "
         "'concepts' field populated - never omit 'domain', even though it is a single "
         "enum choice. 'concepts' being an empty list is fine; omitting it is not."
@@ -158,11 +187,12 @@ def write_concepts_node(state: PipelineState) -> PipelineState:
         concept_id = concept["concept_id"]
 
         try:
-            registry.register_type(concept["type"])
+            sanitized_type = registry.sanitize_type(concept["type"])
+            registry.register_type(sanitized_type)
 
             path, action = bundle.write_concept(
                 concept_id=concept_id,
-                type_=concept["type"],
+                type_=sanitized_type,
                 title=concept["title"],
                 description=concept["description"],
                 body_addition=concept["content"],
@@ -172,9 +202,12 @@ def write_concepts_node(state: PipelineState) -> PipelineState:
                 link_line = f"See [{concept['title']}](/{concept_id}.md)."
                 bundle.add_link(target_id, link_line)
 
+            for rel in concept.get("relations", []):
+                bundle.add_relation(concept_id, rel["predicate"], rel["target_concept_id"])
+
             written.append({
                 "concept_id": concept_id,
-                "type": concept["type"],
+                "type": sanitized_type,
                 "action": action,
                 "path": str(path),
             })

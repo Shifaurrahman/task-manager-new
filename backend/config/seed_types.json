@@ -3,7 +3,7 @@
     "Project",
     "Task",
     "Decision",
-    "Meeting note",
-    "Journal entry",
-    "Personal note"
+    "MeetingNote",
+    "JournalEntry",
+    "PersonalNote"
   ]

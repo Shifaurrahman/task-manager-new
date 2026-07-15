@@ -28,6 +28,23 @@ def append_body(post: frontmatter.Post, addition: str) -> None:
     post["timestamp"] = now_iso()
 
 
+def set_relation(post: frontmatter.Post, predicate: str, target_concept_id: str) -> None:
+    """Set a typed relation as a frontmatter field, Vault-LD wikilink style.
+    Stores the full concept_id (not just filename stem) to stay collision-safe
+    across folders (e.g. professional/people/x vs personal/journal/x)."""
+    wikilink = f"[[{target_concept_id}]]"
+    existing = post.get(predicate)
+    if existing is None:
+        post[predicate] = wikilink
+    elif isinstance(existing, list):
+        if wikilink not in existing:
+            existing.append(wikilink)
+    else:
+        if existing != wikilink:
+            post[predicate] = [existing, wikilink]
+    post["timestamp"] = now_iso()
+
+
 def save(post: frontmatter.Post, path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
