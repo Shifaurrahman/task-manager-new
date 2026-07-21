@@ -55,6 +55,8 @@ def _load_retrieval_config() -> dict:
 
 
 def get_relevant_concepts(message: str) -> list[dict]:
+    """Static/push-mode retrieval - used for pre-fetching a batch to inject
+    into a prompt upfront. Kept for backward compatibility / other callers."""
     config = _load_retrieval_config()
     top_k = config.get("top_k", _FALLBACK_RETRIEVAL_CONFIG["top_k"])
     strategy_name = config.get("strategy", _FALLBACK_RETRIEVAL_CONFIG["strategy"])
@@ -65,3 +67,25 @@ def get_relevant_concepts(message: str) -> list[dict]:
 
     retriever_cls = _STRATEGIES.get(strategy_name, FuzzyRetriever)
     return retriever_cls().retrieve(message, all_concepts, top_k)
+
+
+def search(query: str, top_k: int = 5, concept_type: str | None = None) -> list[dict]:
+    """Pull/agentic-mode retrieval - called on-demand by the search_concepts
+    tool, with a query and top_k the model chooses itself (rather than a
+    fixed batch pre-fetched before the model even runs).
+
+    concept_type, if given, filters to that type before scoring (e.g. only
+    'Person' results when the model is specifically checking for a person).
+    """
+    config = _load_retrieval_config()
+    strategy_name = config.get("strategy", _FALLBACK_RETRIEVAL_CONFIG["strategy"])
+
+    all_concepts = bundle.list_concepts()
+    if concept_type:
+        all_concepts = [c for c in all_concepts if c["type"].lower() == concept_type.lower()]
+
+    if not all_concepts:
+        return []
+
+    retriever_cls = _STRATEGIES.get(strategy_name, FuzzyRetriever)
+    return retriever_cls().retrieve(query, all_concepts, top_k)

@@ -45,6 +45,13 @@ def set_relation(post: frontmatter.Post, predicate: str, target_concept_id: str)
     post["timestamp"] = now_iso()
 
 
+def touch_timestamp(post: frontmatter.Post) -> None:
+    """Update just the timestamp - used by callers (like remove_relation()) that
+    mutate frontmatter directly instead of through set_relation()/append_body(),
+    so the file's 'last modified' still reflects the change."""
+    post["timestamp"] = now_iso()
+
+
 def save(post: frontmatter.Post, path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:

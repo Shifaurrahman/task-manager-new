@@ -13,15 +13,19 @@ FastAPI backend + React (Tailwind, Vite, JS) frontend.
 
 ## How it works, in one paragraph
 
-A message hits `POST /message`. A LangGraph pipeline (1) asks Claude to
-identify every distinct "concept" the message touches (a person, a project, a
-task, an idea — zero, one, or several) and whether each is new or an update to
-something existing, (2) writes/updates each concept as a markdown file with
-YAML frontmatter, cross-linking related concepts, (3) regenerates that
-folder's `log.md` (dated changelog) and `index.md` (table of contents). The
-next message's extraction step reads those same files back — fuzzy-matched
-relevant concepts plus every folder's `index.md` — so the model can reuse
-existing files instead of creating duplicates.
+A message hits `POST /message`. A LangGraph pipeline (1) runs an **agentic
+extraction step** where Claude decides for itself which existing concepts
+(people, projects, tasks, decisions, etc.) are relevant — calling a
+`search_concepts` tool (fuzzy match) and a `get_related_concepts` tool
+(1-hop graph lookup on existing typed relations) as many times as it needs,
+rather than having the whole bundle pre-loaded into the prompt — before
+finally calling `extract_concepts` to report every concept the message
+touches and how to update each, including typed `relations` between them
+(e.g. a task `assignedTo` a person, `partOf` a project); (2) writes/updates
+each concept as a markdown file with YAML frontmatter, cross-linking related
+concepts both as human-readable body links and as machine-readable
+`[[wikilink]]`-style relation fields; (3) regenerates that folder's `log.md`
+(dated changelog) and `index.md` (table of contents).
 
 ---
 
@@ -36,24 +40,33 @@ backend/
 │   ├── models.py                # request/response schemas
 │   ├── llm/
 │   │   ├── __init__.py
-│   │   └── client.py            # Claude Sonnet 5 wrapper - forced tool calls,
-│   │                             #   missing-field retry (proper tool_result format)
+│   │   └── client.py            # Claude Sonnet 5 wrapper:
+│   │                             #   - call_with_tool(): single forced tool call, missing-field retry
+│   │                             #   - call_agentic(): multi-turn tool loop - model freely chooses
+│   │                             #     retrieval tools (search_concepts, get_related_concepts) as
+│   │                             #     many times as it wants before calling the final structured
+│   │                             #     tool (extract_concepts)
 │   ├── okf/
 │   │   ├── __init__.py
-│   │   ├── frontmatter.py       # read/write YAML frontmatter concept files
+│   │   ├── frontmatter.py       # read/write YAML frontmatter concept files; set_relation()
+│   │   │                         #   writes typed [[wikilink]]-style relation fields
 │   │   ├── bundle.py            # concept file I/O, list_concepts(), list_index_files(),
+│   │   │                         #   add_relation(), get_related_concepts() (1-hop graph lookup),
 │   │   │                         #   log.md / index.md maintenance
 │   │   ├── registry.py          # concept type registry - seeds from config/seed_types.json,
-│   │   │                         #   grows automatically as the LLM invents new types
-│   │   └── retrieval.py         # top-K relevant concept lookup (fuzzy match via rapidfuzz),
-│   │                             #   swappable strategy via config/retrieval.json
+│   │   │                         #   grows automatically as the LLM invents new types;
+│   │   │                         #   sanitize_type() forces PascalCase/no-spaces for URI-safety
+│   │   └── retrieval.py         # fuzzy match (rapidfuzz) via two entry points:
+│   │                             #   - get_relevant_concepts(): static top-K batch (legacy/other callers)
+│   │                             #   - search(query, top_k, concept_type): on-demand, called by the
+│   │                             #     search_concepts tool during agentic extraction
 │   └── graph/
 │       ├── __init__.py
 │       ├── state.py              # LangGraph state schema (TypedDicts)
-│       ├── nodes.py              # extract_concepts -> write_concepts -> update_meta
+│       ├── nodes.py              # extract_concepts (agentic) -> write_concepts -> update_meta
 │       └── build_graph.py        # wires the three nodes into a StateGraph
 ├── config/                       # data-driven settings - edit these, not .py files
-│   ├── seed_types.json           # starting concept types (Person, Project, Task, ...)
+│   ├── seed_types.json           # starting concept types (Person, Project, Task, ...) - PascalCase
 │   ├── domains.json               # valid top-level bundle sections (professional, personal)
 │   └── retrieval.json             # {"strategy": "fuzzy", "top_k": 15}
 ├── data/
@@ -69,16 +82,18 @@ backend/
 
 | Node | Job |
 |---|---|
-| `extract_concepts_node` | Builds a prompt with: today's date, the type registry, fuzzy-matched existing concepts, every folder's `index.md`, and the single fixed `owner_name`. Forces a structured tool call returning `domain` + a list of concept touches (can be empty). |
-| `write_concepts_node` | For each concept: creates or appends to its `.md` file (backfilling missing frontmatter on legacy files), registers any new type, writes cross-link lines into related concepts. |
+| `extract_concepts_node` | Runs an agentic tool-use loop (`call_agentic`): Claude is given `search_concepts`, `get_related_concepts`, and `extract_concepts` as tools, with no fixed bundle context pre-loaded into the prompt. It calls the retrieval tools on demand — as many times as needed, once per person/project/task it's unsure about — then calls `extract_concepts` with its final answer (`domain` + a list of concept touches, each with optional typed `relations`). |
+| `write_concepts_node` | For each concept: creates or appends to its `.md` file (backfilling missing frontmatter on legacy files), sanitizes and registers its type (PascalCase, no spaces), writes human-readable cross-links (`links_to`), and writes typed machine-readable relations (`relations`) as `[[wikilink]]`-style frontmatter fields via `bundle.add_relation()`. |
 | `update_meta_node` | Appends a dated entry to the nearest `log.md`, regenerates `index.md` for every touched directory. |
 
 ### Key design rules baked into the extraction prompt
 
 - **Single owner, not a tracked contact** — the dashboard owner (`config.py` → `owner_name`) never gets their own Person file *unless* they explicitly self-reference as a participant ("I need to work on X"). Reporting/assigning someone else's work never touches the owner's file.
 - **Empty responses are valid** — small talk or content with no durable knowledge value should return zero concepts, not be force-fit onto an unrelated existing file.
-- **Reuse over duplication** — the model is shown existing concept IDs and told to reuse them, not invent near-duplicates.
-- **Types are open-vocabulary** — `config/seed_types.json` only seeds the starting list; the LLM can invent new types freely, and they persist automatically to `data/bundle/types.json`.
+- **Agentic retrieval over static context injection** — instead of pre-loading a fixed batch of "relevant" concepts and every folder's `index.md` into every prompt (which scales poorly and pulls in irrelevant context), the model calls `search_concepts`/`get_related_concepts` itself, only for what it actually needs, before deciding whether to reuse or create a concept.
+- **Reuse over duplication** — the model is expected to search before creating, and reuse an existing `concept_id` rather than inventing a near-duplicate.
+- **Typed relations, not just prose links** — concepts can carry a `relations` array (e.g. `assignedTo`, `partOf`, `hasTask`) alongside the existing human-readable `links_to` body links, giving the bundle a machine-traversable graph structure in addition to being human-readable.
+- **Types are open-vocabulary, but sanitized** — `config/seed_types.json` only seeds the starting list; the LLM can invent new types freely, but `registry.sanitize_type()` forces them into PascalCase/no-spaces form before they're persisted, keeping type values safe for any downstream graph/URI use.
 
 ---
 
@@ -121,3 +136,4 @@ Frontend expects the backend at `http://127.0.0.1:8000` by default (override
 with a `VITE_API_BASE` env var if needed).
 
 ---
+

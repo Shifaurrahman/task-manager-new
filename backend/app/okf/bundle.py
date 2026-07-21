@@ -20,10 +20,6 @@ def concept_path(concept_id: str) -> Path:
 
     candidate = (BUNDLE_ROOT / f"{concept_id}.md").resolve()
 
-    # Defense in depth: pathlib silently discards the left side of `/` if the
-    # right side is absolute (e.g. concept_id="/etc/passwd"), so re-check the
-    # final resolved path actually lives under BUNDLE_ROOT no matter how it
-    # was built.
     try:
         candidate.relative_to(BUNDLE_ROOT)
     except ValueError:
@@ -76,6 +72,32 @@ def list_index_files() -> list[dict]:
     return indexes
 
 
+def find_similar_concept(type_: str, title: str, threshold: int = 85) -> str | None:
+    """Safety net against duplicate concepts: before a NEW file is created,
+    fuzzy-match its title against existing concepts of the same type. If a
+    close match exists, return its concept_id so the caller can reuse that
+    file instead of forking a new one.
+
+    This exists because the LLM does not always call search_concepts before
+    deciding a concept - especially Tasks - is new. Prompting alone cannot
+    guarantee that, so this is a code-level guardrail on top of it.
+    """
+    from rapidfuzz import fuzz
+
+    candidates = [c for c in list_concepts() if c["type"] == type_]
+    best_match = None
+    best_score = 0
+    for c in candidates:
+        score = fuzz.ratio(title.lower(), c["title"].lower())
+        if score > best_score:
+            best_score = score
+            best_match = c["concept_id"]
+
+    if best_score >= threshold:
+        return best_match
+    return None
+
+
 def write_concept(concept_id: str, type_: str, title: str, description: str, body_addition: str) -> tuple[Path, str]:
     """Create the concept file if missing, otherwise append to it. Returns (path, action)."""
     path = concept_path(concept_id)
@@ -113,13 +135,67 @@ def add_link(concept_id: str, link_line: str) -> None:
 def add_relation(concept_id: str, predicate: str, target_concept_id: str) -> None:
     """Set a typed frontmatter relation (Vault-LD wikilink) on an existing concept,
     pointing at another concept by its full concept_id. This is the machine-readable
-    counterpart to add_link()'s human-readable body cross-link."""
+    counterpart to add_link()'s human-readable body cross-link.
+
+    NOTE: 'relations' is meant for stable structural graph edges only
+    (assignedTo, partOf, attendee, etc). Status/state information (e.g. a task
+    being complete) should NOT be expressed as a relation - it belongs in the
+    concept's body content as prose. This is enforced via the system prompt,
+    not here; this function stays a plain, unconditional setter so its
+    behavior doesn't depend on guessing which predicate names carry status
+    meaning.
+    """
     path = concept_path(concept_id)
     post = fm.load(path)
     if post is None:
         return
     fm.set_relation(post, predicate, target_concept_id)
     fm.save(post, path)
+
+def get_title(concept_id: str) -> str | None:
+    """Look up a concept's display title by its concept_id. Used when
+    auto-generating a cross-link to a concept outside the current batch
+    (so the link text isn't just the raw concept_id)."""
+    if not concept_exists(concept_id):
+        return None
+    post = fm.load(concept_path(concept_id))
+    return post.get("title", concept_id) if post else None
+
+
+def remove_relation(concept_id: str, predicate: str, target_concept_id: str) -> None:
+    """Remove one target from a typed frontmatter relation, if present. Handles
+    both the single-string and list forms set_relation() can produce. No-op if
+    the concept, predicate, or target isn't there.
+
+    Kept as a general-purpose utility even though add_relation() no longer
+    calls it automatically - useful for any future cleanup path (e.g. an
+    unassign action) that needs to remove a specific relation edge.
+    """
+    path = concept_path(concept_id)
+    post = fm.load(path)
+    if post is None:
+        return
+
+    existing = post.get(predicate)
+    if existing is None:
+        return
+
+    wikilink = f"[[{target_concept_id}]]"
+
+    if isinstance(existing, list):
+        if wikilink in existing:
+            existing.remove(wikilink)
+            if len(existing) == 1:
+                post[predicate] = existing[0]   # demote back to a single string
+            elif len(existing) == 0:
+                del post[predicate]
+            fm.touch_timestamp(post)
+            fm.save(post, path)
+    else:
+        if existing == wikilink:
+            del post[predicate]
+            fm.touch_timestamp(post)
+            fm.save(post, path)
 
 
 def append_log(concept_id: str, entry: str) -> None:
@@ -142,6 +218,35 @@ def append_log(concept_id: str, entry: str) -> None:
         text += f"\n{heading}\n{line}\n"
 
     log_path.write_text(text)
+
+
+def get_related_concepts(concept_id: str) -> list[dict]:
+    """Return concepts this concept has typed frontmatter relations to
+    (e.g. assignedTo, hasTask, partOf) - a 1-hop graph lookup, used by the
+    get_related_concepts tool so the model can see existing relationships
+    before adding new ones."""
+    path = concept_path(concept_id)
+    post = fm.load(path)
+    if post is None:
+        return [{"info": f"No concept found at {concept_id}"}]
+
+    reserved_keys = {"type", "title", "description", "timestamp"}
+    related = []
+    for key, value in post.metadata.items():
+        if key in reserved_keys:
+            continue
+        values = value if isinstance(value, list) else [value]
+        for v in values:
+            if isinstance(v, str) and v.startswith("[[") and v.endswith("]]"):
+                target_id = v[2:-2]
+                target_post = fm.load(concept_path(target_id)) if concept_exists(target_id) else None
+                related.append({
+                    "predicate": key,
+                    "concept_id": target_id,
+                    "title": target_post.get("title", target_id) if target_post else target_id,
+                    "type": target_post.get("type", "Unknown") if target_post else "Unknown",
+                })
+    return related or [{"info": f"{concept_id} has no recorded relations yet."}]
 
 
 def rebuild_index(directory: Path) -> None:

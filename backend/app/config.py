@@ -6,7 +6,7 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     anthropic_api_key: str
     bundle_root: str = "./data/bundle"
-    model: str = "claude-sonnet-5"
+    model: str = "claude-haiku-4-5-20251001"
     owner_name: str = "kamal"  # this bundle belongs to one person - set here, not per-request
 
     # Data-driven config - edit these files, not Python, to change behavior.

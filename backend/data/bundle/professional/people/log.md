@@ -1,25 +1,5 @@
 # Directory Update Log
 
-## 2026-07-08
-* **Update**: professional/people/piyal.md (Person)
-
-## 2026-07-09
-* **Creation**: professional/people/dinuka.md (Person)
-* **Update**: professional/people/kamal.md (Person)
-* **Creation**: professional/people/sanduni.md (Person)
-* **Creation**: professional/people/kasun.md (Person)
-* **Update**: professional/people/kamal.md (Person)
-* **Creation**: professional/people/kamal.md (Person)
-* **Creation**: professional/people/abc-team.md (Person)
-* **Update**: professional/people/piyal.md (Person)
-
-## 2026-07-10
-* **Creation**: professional/people/amila.md (Person)
-
-## 2026-07-13
-* **Creation**: professional/people/chamodi.md (Person)
-* **Creation**: professional/people/madushan.md (Person)
-* **Creation**: professional/people/dilshan.md (Person)
-
-## 2026-07-14
-* **Creation**: professional/people/vihanga.md (Person)
+## 2026-07-20
+* **Update**: professional/people/erandi.md (Person)
+* **Creation**: professional/people/erandi.md (Person)
